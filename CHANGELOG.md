@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.0 — 2026-11-17
+New Library tool (header button "Library").
+- Open your ROM library folder read-only (drive, NAS share or local folder), reopen it in one click; demo library included.
+- System detection from folder names (spruceOS, No-Intro/Redump, EmuDeck, Batocera, LaunchBox styles), file extensions and the files inside zips; unrecognized folders can be assigned to a system or ignored.
+- Duplicates folded into one entry per game: regions, revisions, fan translations, betas/demos/hacks, bad dumps, file formats (CHD, PBP, CUE/BIN, GDI, ISO, ZIP) and multi-disc sets (Disc N files and M3U playlists).
+- Best version chosen by your region order (default USA › World › Europe › Japan), latest revision, preferred format; override per game from the versions menu.
+- "On card" detection against the open SD card; option to hide those games.
+- Ask AI: prompt for Claude, Gemini or ChatGPT with your taste (collections and games on the card), free space and focus. Small libraries send the full list with IDs; big ones let the AI suggest by name and the tool matches them against your library. Reply format: spruce-library-suggestions/v1.
+- Copy to card with progress, stop and resume: Roms/<system>, cue+bin kept together, multi-disc games in a hidden folder with an .m3u playlist, box art copied when the library has it, checksum-identified files renamed to their official names.
+- Checks before copying: free space (enter the card size once), 4 GB FAT32 limit, missing BIOS for FDS, PC Engine CD, Sega CD, Dreamcast and Lynx, systems without an emulator on the card.
+- Optional collection for the copied games.
+- DAT import (No-Intro, Redump, MAME/FBNeo Logiqx XML): exact identification by CRC32 from zips for free, optional checksums of loose files up to 64 MB, arcade set names shown as full titles.
+- Scan cache: later scans only read files that changed.
+
+## v0.2.1 — 2026-11-17
+- Suggest with AI: new option to ask for a single collection (1, 3, 5 or 10).
+- With one collection, the focus box asks what the collection should be about and the prompt asks for one theme built around it; left empty, the AI picks the theme.
+
 ## v0.2.0 — 2026-11-17
 - New "Suggest with AI" button: builds a prompt with every game on the card (short stable IDs, titles, systems, gamelist genres) for Claude, Gemini or ChatGPT.
 - Choose 3, 5 or 10 collections, max games per collection (12, 20 or 30) and an optional focus ("games for my kids", "short sessions"…). Existing collections are listed so the AI doesn't repeat them.

@@ -18,7 +18,7 @@ export const ASSISTANTS: Record<Assistant, { label: string; url: string }> = {
 }
 
 /** FNV-1a → base36. Same game gets the same ID every time, so an old reply still matches. */
-function hashId(s: string) {
+export function hashId(s: string) {
   let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i)
@@ -51,7 +51,9 @@ export function buildCatalog(roms: Rom[]): Catalog {
     byId.set(id, r)
     idOf.set(r.path, id)
     const k = titleKey(r.name)
-    byTitle.set(k, [...(byTitle.get(k) ?? []), r])
+    const l = byTitle.get(k)
+    if (l) l.push(r)
+    else byTitle.set(k, [r])
   }
   return { byId, idOf, byTitle }
 }
@@ -68,18 +70,25 @@ export interface SuggestOptions {
 
 export function buildSuggestPrompt(o: SuggestOptions) {
   const lines: string[] = []
+  const one = o.count === 1
   lines.push(
-    `I play retro games on a handheld running spruceOS. Below is every game on my SD card. Suggest exactly ${o.count} collections to organize it.`,
+    one
+      ? "I play retro games on a handheld running spruceOS. Below is every game on my SD card. Suggest exactly one collection built from it."
+      : `I play retro games on a handheld running spruceOS. Below is every game on my SD card. Suggest exactly ${o.count} collections to organize it.`,
     "",
     "Rules:",
-    "- Give each collection a clear theme: a franchise, genre, mood, setting, era, play style (co-op, short sessions, long RPGs), difficulty, hidden gems, or similar. Mix kinds of themes.",
-    `- Each collection holds between 4 and ${o.maxPerCollection} games. A game can be in more than one collection, and not every game needs to be used.`,
+    one
+      ? "- Give the collection one clear theme. Pick the games that fit it best."
+      : "- Give each collection a clear theme: a franchise, genre, mood, setting, era, play style (co-op, short sessions, long RPGs), difficulty, hidden gems, or similar. Mix kinds of themes.",
+    one
+      ? `- The collection holds between 4 and ${o.maxPerCollection} games.`
+      : `- Each collection holds between 4 and ${o.maxPerCollection} games. A game can be in more than one collection, and not every game needs to be used.`,
     "- Use only games from the catalog and refer to them by their ID (the code before each title). Never invent IDs.",
     "- Collection names: short (max 40 characters), no emoji, and none of these characters: \\ / : * ? \" < > |",
   )
   if (o.existing.length)
     lines.push(`- I already have these collections, so don't repeat them: ${o.existing.map((c) => `"${c.name}"`).join(", ")}.`)
-  if (o.focus.trim()) lines.push(`- What I'm looking for: ${o.focus.trim()}`)
+  if (o.focus.trim()) lines.push(one ? `- The collection should be: ${o.focus.trim()}` : `- What I'm looking for: ${o.focus.trim()}`)
   lines.push(
     "",
     "Reply with one JSON code block and nothing else, in exactly this format:",
@@ -96,7 +105,11 @@ export function buildSuggestPrompt(o: SuggestOptions) {
   )
 
   const bySystem = new Map<string, Rom[]>()
-  for (const r of o.roms) bySystem.set(r.systemId, [...(bySystem.get(r.systemId) ?? []), r])
+  for (const r of o.roms) {
+    const l = bySystem.get(r.systemId)
+    if (l) l.push(r)
+    else bySystem.set(r.systemId, [r])
+  }
   for (const s of o.systems) {
     const list = bySystem.get(s.id)
     if (!list?.length) continue
@@ -120,7 +133,7 @@ export interface ParseResult {
   error?: string
 }
 
-function extractJson(text: string): unknown {
+export function extractJson(text: string): unknown {
   const candidates: string[] = []
   const fence = /```(?:json)?\s*([\s\S]*?)```/gi
   for (let m; (m = fence.exec(text)); ) candidates.push(m[1])

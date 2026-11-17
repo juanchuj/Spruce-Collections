@@ -19,6 +19,9 @@ Firefox and Safari can read the card but not write to it: there you download `co
 ```
 Game IDs are short hashes of each ROM path, so they stay the same between sessions.
 
+## Library
+**Library** opens your full ROM collection (read-only), lists each game once with the best version picked, marks what's already on the card, asks an AI what to add, and copies the chosen games to the card. Multi-disc games go into a hidden `.Title` folder with a `Title.m3u` playlist, the way spruceOS expects. Import No-Intro/Redump/MAME DATs in Library → Settings to identify games by checksum.
+
 ## What it writes
 - `Collections/collections.json` — same schema PyUI's `CollectionsManager` uses:
   `[{ "collection_name": "...", "game_list": [{ "rom_file_path": "/mnt/SDCARD/Roms/GBA/x.gba", "game_system_name": "GBA" }] }]`

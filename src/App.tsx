@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Download, HardDrive, LogOut, Redo2, Save, Sparkles, Undo2 } from "lucide-react"
+import { Download, HardDrive, Library as LibraryIcon, LogOut, Redo2, Save, Sparkles, Undo2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { Toaster } from "@/components/ui/sonner"
@@ -11,6 +11,7 @@ import { Library } from "@/components/Library"
 import { SystemRail } from "@/components/SystemRail"
 import { CollectionsPanel } from "@/components/CollectionsPanel"
 import { SuggestDialog } from "@/components/SuggestDialog"
+import { LibraryView } from "@/components/library/LibraryView"
 import { renderCover } from "@/lib/cover"
 import { ConflictDialog, CoverDialog, NameDialog, type NameRequest, SaveDialog } from "@/components/Dialogs"
 import { type CardDir, FsaDir, MemDir } from "@/lib/fs"
@@ -21,6 +22,7 @@ import {
   type Collection,
   type Rom,
   type SavePlan,
+  type ScanResult,
   ConflictError,
   NotSpruceError,
   loadCollections,
@@ -55,6 +57,8 @@ export default function App() {
   const [conflict, setConflict] = useState(false)
   const [coverEpoch, setCoverEpoch] = useState(0)
   const [suggestOpen, setSuggestOpen] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const latestScan = useRef<ScanResult | null>(null)
 
   useEffect(() => {
     recallHandle().then(setRemembered)
@@ -120,6 +124,27 @@ export default function App() {
 
   const active = collections.find((c) => c.uid === ws.selected) ?? null
   const scan = session?.scan
+  latestScan.current = scan ?? null
+
+  const refreshCard = async (): Promise<ScanResult | null> => {
+    if (!session) return null
+    try {
+      const fresh = await scanCard(session.root)
+      latestScan.current = fresh
+      ws.updateScan(fresh)
+      return fresh
+    } catch (e) {
+      toast.error(`Couldn't reread the card: ${(e as Error).message}`)
+      return null
+    }
+  }
+
+  const collectionFromPaths = (name: string, paths: string[]) => {
+    const s = latestScan.current
+    if (!s) return
+    const roms = paths.map((p) => s.byPath.get(p)).filter((r): r is Rom => !!r)
+    if (roms.length) actions.createMany([{ name, roms }])
+  }
 
   const askNew = (roms: Rom[] = []) =>
     setNameReq({
@@ -296,7 +321,15 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <Button variant="secondary" className="press mr-2" onClick={() => setSuggestOpen(true)}>
+            <Button
+              variant={libraryOpen ? "default" : "secondary"}
+              className="press"
+              onClick={() => setLibraryOpen((o) => !o)}
+              aria-pressed={libraryOpen}
+            >
+              <LibraryIcon className={libraryOpen ? "" : "text-btn-b"} /> Library
+            </Button>
+            <Button variant="secondary" className="press mr-2" onClick={() => setSuggestOpen(true)} disabled={libraryOpen}>
               <Sparkles className="text-btn-b" /> Suggest with AI
             </Button>
             <Tooltip>
@@ -349,6 +382,17 @@ export default function App() {
           </div>
         </header>
 
+        {libraryOpen ? (
+          <LibraryView
+            card={session.root}
+            cardWritable={session.mode !== "readonly"}
+            cardScan={scan}
+            collections={collections}
+            onBack={() => setLibraryOpen(false)}
+            onCardChanged={refreshCard}
+            onMakeCollection={collectionFromPaths}
+          />
+        ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
           <SystemRail systems={scan.systems} total={scan.roms.length} value={systemFilter} onChange={setSystemFilter} />
           <Library
@@ -394,6 +438,7 @@ export default function App() {
             onRemoveGames={actions.removeGames}
           />
         </div>
+        )}
       </div>
 
       <NameDialog req={nameReq} collections={collections} onClose={() => setNameReq(null)} />

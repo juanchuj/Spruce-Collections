@@ -178,6 +178,11 @@ export function useWorkspace() {
     [commit],
   )
 
+  /** Swap in a fresh card scan (after copying games) without touching collections or history. */
+  const updateScan = useCallback((scan: ScanResult) => {
+    setSession((s) => (s ? { ...s, scan } : s))
+  }, [])
+
   const markSaved = useCallback((snapshot: string) => {
     const saved = live.current.map((c) => ({ ...c, originalName: c.name }))
     live.current = saved
@@ -230,6 +235,7 @@ export function useWorkspace() {
     canRedo: future.current.length > 0,
     diff,
     markSaved,
+    updateScan,
   }
 }
 

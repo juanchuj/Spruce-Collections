@@ -17,6 +17,24 @@ export interface CardDir {
   /** Write a file, replacing it. Writable backends only. */
   write(name: string, data: Blob | string): Promise<void>
   remove(name: string): Promise<void>
+  /** Copy a (possibly huge) blob into a file, streaming, with byte progress. Writable backends only. */
+  writeFrom(name: string, src: Blob, onBytes?: (n: number) => void, signal?: AbortSignal): Promise<void>
+}
+
+/** Create (or open) a nested folder path like "Roms/PS/.Final Fantasy VII (USA)". */
+export async function ensureDirPath(root: CardDir, path: string): Promise<CardDir> {
+  let cur = root
+  for (const part of path.split("/").filter(Boolean)) cur = await cur.ensureDir(part)
+  return cur
+}
+
+function counting(onBytes?: (n: number) => void) {
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, ctl) {
+      onBytes?.(chunk.byteLength)
+      ctl.enqueue(chunk)
+    },
+  })
 }
 
 /** Walk a slash path ("Roms/GB/Imgs") from a root. */
@@ -94,6 +112,13 @@ export class FsaDir implements CardDir {
 
   async remove(name: string) {
     await this.handle.removeEntry(name)
+  }
+
+  async writeFrom(name: string, src: Blob, onBytes?: (n: number) => void, signal?: AbortSignal) {
+    const fh = await this.handle.getFileHandle(name, { create: true })
+    const w = await fh.createWritable()
+    // pipeTo closes the writable on success; on abort the swap file is discarded and the target stays untouched.
+    await src.stream().pipeThrough(counting(onBytes)).pipeTo(w, { signal })
   }
 }
 
@@ -177,6 +202,13 @@ export class MemDir implements CardDir {
   async remove(name: string) {
     this.assertWritable()
     this.node.children.delete(name)
+  }
+
+  async writeFrom(name: string, src: Blob, onBytes?: (n: number) => void, signal?: AbortSignal) {
+    this.assertWritable()
+    if (signal?.aborted) throw new DOMException("Copy cancelled", "AbortError")
+    onBytes?.(src.size)
+    this.node.children.set(name, { kind: "file", file: new File([src], name) })
   }
 
   private assertWritable() {

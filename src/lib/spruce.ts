@@ -43,8 +43,19 @@ export interface CardInfo {
   hasPyUI: boolean
 }
 
+export interface EmuInfo {
+  id: string
+  label: string
+  extlist: Set<string>
+  aliases: string[]
+  /** Existing ROM folder for this system on the card, if any. */
+  folder: string | null
+}
+
 export interface ScanResult {
   info: CardInfo
+  /** Every system with an Emu config on the card, with or without games. */
+  emu: EmuInfo[]
   systems: GameSystem[]
   roms: Rom[]
   byPath: Map<string, Rom>
@@ -136,6 +147,7 @@ export async function scanCard(root: CardDir, onProgress?: (p: ScanProgress) => 
 
   const systems: GameSystem[] = []
   const roms: Rom[] = []
+  const emuInfo: EmuInfo[] = []
   let done = 0
 
   for (const { name: id } of emuDirs) {
@@ -161,6 +173,7 @@ export async function scanCard(root: CardDir, onProgress?: (p: ScanProgress) => 
     const folders = [id, ...(cfg.alternativeFolderNames ?? [])].filter(
       (f, i, a) => romFolderNames.has(f) && a.indexOf(f) === i,
     )
+    emuInfo.push({ id, label: cfg.label ?? id, extlist, aliases: cfg.alternativeFolderNames ?? [], folder: folders[0] ?? null })
     if (!folders.length) continue
 
     onProgress?.({ system: cfg.label ?? id, done, total: emuDirs.length, roms: roms.length })
@@ -223,7 +236,7 @@ export async function scanCard(root: CardDir, onProgress?: (p: ScanProgress) => 
   systems.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }))
   const order = new Map(systems.map((s, i) => [s.id, i]))
   roms.sort((a, b) => order.get(a.systemId)! - order.get(b.systemId)!) // stable: keeps name order inside a system
-  return { info, systems, roms, byPath: new Map(roms.map((r) => [r.path, r])) }
+  return { info, emu: emuInfo, systems, roms, byPath: new Map(roms.map((r) => [r.path, r])) }
 }
 
 /* ------------------------------------------------------------------ */

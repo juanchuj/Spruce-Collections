@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Segmented, StepTitle } from "./Dialogs"
 
-const COUNTS = [3, 5, 10] as const
+const COUNTS = [1, 3, 5, 10] as const
 const SIZES = [12, 20, 30] as const
 const BIG_PROMPT = 120_000 // characters; beyond this, attaching a file is more reliable than pasting
 
@@ -154,15 +154,22 @@ export function SuggestDialog({ open, roms, systems, collections, onClose, onCre
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="suggest-focus" className="text-xs text-ink-dim">
-                  Anything in particular? (optional)
+                  {count === 1 ? "What should the collection be about?" : "Anything in particular? (optional)"}
                 </Label>
                 <Input
                   id="suggest-focus"
                   value={focus}
                   onChange={(e) => setFocus(e.target.value)}
-                  placeholder="Games to play with my kids, short sessions, best RPGs…"
+                  placeholder={
+                    count === 1
+                      ? "Co-op games for two players, games under 30 minutes, best horror…"
+                      : "Games to play with my kids, short sessions, best RPGs…"
+                  }
                   className="bg-shell-2"
                 />
+                {count === 1 && !focus.trim() && (
+                  <p className="text-xs text-ink-dim">Leave it empty and the AI picks the theme.</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-ink-dim">AI to use</Label>
