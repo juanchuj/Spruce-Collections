@@ -56,6 +56,40 @@ function label(ctx: CanvasRenderingContext2D, name: string, y: number, h: number
   ctx.fillText(name, 24, y + h / 2 + 1)
 }
 
+export type FitMode = "fill" | "fit"
+
+/**
+ * Turn any uploaded image into a square PNG cover.
+ * fill = crop to square, fit = whole image on the shell color. Optionally stamp the name.
+ */
+export async function renderUploaded(file: Blob, opts: { fit: FitMode; title: boolean; name: string }): Promise<Blob> {
+  if (opts.title) await document.fonts?.load("700 20px Silkscreen").catch(() => {})
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await loadImage(url)
+    const canvas = document.createElement("canvas")
+    canvas.width = SIZE
+    canvas.height = SIZE
+    const ctx = canvas.getContext("2d")!
+    ctx.imageSmoothingQuality = "high"
+    ctx.fillStyle = "#17132a"
+    ctx.fillRect(0, 0, SIZE, SIZE)
+    if (opts.fit === "fill") drawCover(ctx, img, 0, 0, SIZE, SIZE)
+    else {
+      const s = Math.min(SIZE / img.width, SIZE / img.height)
+      const w = img.width * s
+      const h = img.height * s
+      ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h)
+    }
+    if (opts.title) label(ctx, opts.name, SIZE - 76, 76)
+    return await new Promise((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not process the image"))), "image/png"),
+    )
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 /** Render a collection cover as a PNG blob. */
 export async function renderCover(name: string, roms: Rom[], layout: CoverLayout): Promise<Blob> {
   await document.fonts?.load("700 20px Silkscreen").catch(() => {})

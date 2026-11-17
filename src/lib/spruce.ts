@@ -34,6 +34,8 @@ export interface Rom {
   name: string
   /** Card-relative candidates for box art, best first. */
   art: string[]
+  /** Genre from gamelist.xml, when the card has one. */
+  genre?: string
 }
 
 export interface CardInfo {
@@ -93,7 +95,7 @@ export async function detectCard(root: CardDir): Promise<CardInfo> {
   return { version: version && /^\d+\.\d+/.test(version) ? version : null, hasPyUI }
 }
 
-type Gamelist = Map<string, { name?: string; image?: string }>
+type Gamelist = Map<string, { name?: string; image?: string; genre?: string }>
 
 function parseGamelist(xml: string): Gamelist {
   const out: Gamelist = new Map()
@@ -105,7 +107,8 @@ function parseGamelist(xml: string): Gamelist {
       const key = p.replace(/^\.\//, "")
       const name = g.getElementsByTagName("name")[0]?.textContent?.trim() || undefined
       const image = g.getElementsByTagName("image")[0]?.textContent?.trim().replace(/^\.\//, "") || undefined
-      out.set(key, { name, image })
+      const genre = g.getElementsByTagName("genre")[0]?.textContent?.trim() || undefined
+      out.set(key, { name, image, genre })
     }
   } catch {
     /* a broken gamelist just means filenames are used */
@@ -197,6 +200,7 @@ export async function scanCard(root: CardDir, onProgress?: (p: ScanProgress) => 
             fileName: e.name,
             name: gl?.name || base,
             art,
+            genre: gl?.genre,
           })
         }
       }

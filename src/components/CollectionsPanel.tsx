@@ -107,7 +107,7 @@ function CollectionRow({ c, root, pending, epoch, active, index, count, onSelect
               <Pencil /> Rename
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onCover}>
-              <ImagePlus /> Make cover
+              <ImagePlus /> Set cover
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onDuplicate}>
               <Copy /> Duplicate

@@ -375,6 +375,7 @@ export default function App() {
       <CoverDialog
         target={coverFor}
         roms={coverRoms}
+        systems={scan.systems}
         onClose={() => setCoverFor(null)}
         onUse={(blob) => {
           if (!coverFor) return

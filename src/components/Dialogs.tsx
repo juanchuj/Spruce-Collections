@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
-import { Download, HardDriveDownload, LayoutGrid, Grid3x3, Loader2, ImageIcon } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
+import { Copy, Download, ExternalLink, HardDriveDownload, ImageIcon, ImageUp, LayoutGrid, Grid3x3, Loader2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -14,8 +15,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { type CoverLayout, renderCover } from "@/lib/cover"
-import type { Collection, Rom } from "@/lib/spruce"
+import { type CoverLayout, type FitMode, renderCover, renderUploaded } from "@/lib/cover"
+import { type PromptStyle, STYLE_LABELS, buildCoverPrompt } from "@/lib/prompt"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
+import type { Collection, GameSystem, Rom } from "@/lib/spruce"
 import { validateName } from "@/lib/spruce"
 import type { Diff } from "@/state/useWorkspace"
 import { cn } from "@/lib/utils"
@@ -100,77 +105,304 @@ const LAYOUTS: { id: CoverLayout; label: string; icon: React.ReactNode }[] = [
   { id: "title", label: "Title card", icon: <ImageIcon /> },
 ]
 
+const GEMINI_URL = "https://gemini.google.com/app"
+
+function useBlobUrl(blob: Blob | null) {
+  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob])
+  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url])
+  return url
+}
+
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T
+  options: { id: T; label: string; icon?: React.ReactNode }[]
+  onChange: (v: T) => void
+  label: string
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <Button
+          key={o.id}
+          role="radio"
+          aria-checked={value === o.id}
+          variant={value === o.id ? "secondary" : "ghost"}
+          size="sm"
+          className={cn(value === o.id && "ring-2 ring-btn-b")}
+          onClick={() => onChange(o.id)}
+        >
+          {o.icon} {o.label}
+        </Button>
+      ))}
+    </div>
+  )
+}
+
+function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+      <span className="grid size-5 place-items-center rounded-[4px] bg-btn-a font-pixel text-[10px] text-primary-foreground">{n}</span>
+      {children}
+    </h3>
+  )
+}
+
 export function CoverDialog({
   target,
   roms,
+  systems,
   onClose,
   onUse,
 }: {
   target: Collection | null
   roms: Rom[]
+  systems: GameSystem[]
   onClose: () => void
   onUse: (blob: Blob) => void
 }) {
+  const [tab, setTab] = useState<"boxart" | "image">("boxart")
+
+  // Box-art collage
   const [layout, setLayout] = useState<CoverLayout>("grid4")
-  const [blob, setBlob] = useState<Blob | null>(null)
+  const [collage, setCollage] = useState<Blob | null>(null)
   const [busy, setBusy] = useState(false)
-  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob])
-  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url])
+
+  // Own image
+  const [style, setStyle] = useState<PromptStyle>("pixel")
+  const [promptTitle, setPromptTitle] = useState(true)
+  const [prompt, setPrompt] = useState("")
+  const [source, setSource] = useState<File | null>(null)
+  const [fit, setFit] = useState<FitMode>("fill")
+  const [stamp, setStamp] = useState(false)
+  const [uploaded, setUploaded] = useState<Blob | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!target) return
+    setTab("boxart")
+    setSource(null)
+    setUploaded(null)
+    setStamp(false)
+  }, [target])
 
   useEffect(() => {
     if (!target) return
     let alive = true
     setBusy(true)
     renderCover(target.name, roms, layout)
-      .then((b) => alive && setBlob(b))
+      .then((b) => alive && setCollage(b))
       .finally(() => alive && setBusy(false))
     return () => {
       alive = false
     }
   }, [target, roms, layout])
 
+  useEffect(() => {
+    if (target) setPrompt(buildCoverPrompt({ name: target.name, roms, systems, style, withTitle: promptTitle }))
+  }, [target, roms, systems, style, promptTitle])
+
+  useEffect(() => {
+    if (!target || !source) return
+    let alive = true
+    renderUploaded(source, { fit, title: stamp, name: target.name })
+      .then((b) => alive && setUploaded(b))
+      .catch(() => {
+        if (!alive) return
+        setSource(null)
+        toast.error("That file isn't an image the browser can open. Try PNG, JPG or WebP.")
+      })
+    return () => {
+      alive = false
+    }
+  }, [target, source, fit, stamp])
+
+  const takeFile = useCallback((f: File | undefined | null) => {
+    if (!f) return
+    if (!f.type.startsWith("image/")) {
+      toast.error("Choose an image file: PNG, JPG or WebP.")
+      return
+    }
+    setSource(f)
+    setTab("image")
+  }, [])
+
+  // Paste an image straight from the clipboard (e.g. copied from Gemini).
+  useEffect(() => {
+    if (!target) return
+    const onPaste = (e: ClipboardEvent) => {
+      const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith("image/"))
+      if (item) {
+        e.preventDefault()
+        takeFile(item.getAsFile())
+      }
+    }
+    window.addEventListener("paste", onPaste)
+    return () => window.removeEventListener("paste", onPaste)
+  }, [target, takeFile])
+
+  const collageUrl = useBlobUrl(collage)
+  const uploadedUrl = useBlobUrl(uploaded)
+  const result = tab === "boxart" ? collage : uploaded
+  const previewUrl = tab === "boxart" ? collageUrl : uploadedUrl
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt)
+      toast.success("Prompt copied", { description: "Paste it into Gemini, then bring the image back here." })
+    } catch {
+      toast.error("Couldn't copy. Select the text and copy it yourself.")
+    }
+  }
+
   return (
     <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="font-pixel text-base">Cover for {target?.name}</DialogTitle>
-          <DialogDescription>
-            Built from the games' box art. Saved as Collections/Imgs/{target?.name}.png when you save to the card.
-          </DialogDescription>
+          <DialogDescription>Saved as Collections/Imgs/{target?.name}.png when you save to the card.</DialogDescription>
         </DialogHeader>
-        <div className="flex gap-2" role="radiogroup" aria-label="Cover layout">
-          {LAYOUTS.map((l) => (
-            <Button
-              key={l.id}
-              role="radio"
-              aria-checked={layout === l.id}
-              variant={layout === l.id ? "secondary" : "ghost"}
-              size="sm"
-              className={cn(layout === l.id && "ring-2 ring-btn-b")}
-              onClick={() => setLayout(l.id)}
-            >
-              {l.icon} {l.label}
-            </Button>
-          ))}
-        </div>
-        <div className="relative mx-auto aspect-square w-full max-w-[340px] overflow-hidden rounded-lg bg-shell ring-1 ring-line">
-          {url && <img src={url} alt="Cover preview" className="size-full" />}
-          {busy && (
-            <div className="absolute inset-0 grid place-items-center bg-shell/50">
-              <Loader2 className="size-6 animate-spin text-ink-dim" />
+
+        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_300px]">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="min-w-0">
+            <TabsList className="w-full">
+              <TabsTrigger value="boxart">
+                <LayoutGrid /> From box art
+              </TabsTrigger>
+              <TabsTrigger value="image">
+                <ImageUp /> Your image
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="boxart" className="space-y-3 pt-3">
+              <p className="text-sm text-ink-dim">A collage of the games' box art with the collection name.</p>
+              <Segmented value={layout} options={LAYOUTS} onChange={setLayout} label="Cover layout" />
+              {roms.length === 0 && <p className="text-sm text-amber">This collection has no games yet, so the cover uses placeholders.</p>}
+            </TabsContent>
+
+            <TabsContent value="image" className="space-y-6 pt-3">
+              <section className="space-y-3">
+                <StepTitle n={1}>Generate an image with Nano Banana</StepTitle>
+                <Segmented
+                  value={style}
+                  options={(Object.keys(STYLE_LABELS) as PromptStyle[]).map((id) => ({ id, label: STYLE_LABELS[id] }))}
+                  onChange={setStyle}
+                  label="Art style"
+                />
+                <label className="flex items-center gap-2.5 text-sm text-ink">
+                  <Switch checked={promptTitle} onCheckedChange={setPromptTitle} />
+                  Ask for the collection name in the artwork
+                </label>
+                <Textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="h-44 resize-y bg-shell-2 text-[13px] leading-relaxed"
+                  aria-label="Prompt for Nano Banana"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" className="press" onClick={copyPrompt}>
+                    <Copy /> Copy prompt
+                  </Button>
+                  <Button size="sm" variant="secondary" className="press" asChild>
+                    <a href={GEMINI_URL} target="_blank" rel="noreferrer">
+                      <ExternalLink /> Open Gemini
+                    </a>
+                  </Button>
+                </div>
+                <p className="text-xs text-ink-dim">
+                  In Gemini, choose image creation (Nano Banana), paste the prompt and download the result. You can edit the prompt
+                  here first.
+                </p>
+              </section>
+
+              <section className="space-y-3">
+                <StepTitle n={2}>Add the image</StepTitle>
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    setDragging(true)
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragging(false)
+                    takeFile(e.dataTransfer.files[0])
+                  }}
+                  className={cn(
+                    "flex w-full flex-col items-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    dragging ? "border-btn-b bg-btn-b/10" : "border-line hover:border-ink-dim hover:bg-panel/60",
+                  )}
+                >
+                  <Upload className="size-5 text-btn-b" />
+                  <span className="font-semibold text-ink">{source ? source.name : "Drop an image, click to choose, or paste it"}</span>
+                  <span className="text-xs text-ink-dim">Any image works: PNG, JPG or WebP. It's resized to a square PNG.</span>
+                </button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    takeFile(e.target.files?.[0])
+                    e.target.value = ""
+                  }}
+                />
+                {source && (
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                    <Segmented
+                      value={fit}
+                      options={[
+                        { id: "fill" as FitMode, label: "Crop to square" },
+                        { id: "fit" as FitMode, label: "Show whole image" },
+                      ]}
+                      onChange={setFit}
+                      label="How the image fits"
+                    />
+                    <label className="flex items-center gap-2.5 text-sm text-ink">
+                      <Switch checked={stamp} onCheckedChange={setStamp} />
+                      Add name bar
+                    </label>
+                  </div>
+                )}
+              </section>
+            </TabsContent>
+          </Tabs>
+
+          <div className="space-y-2 md:pt-12">
+            <div className="relative mx-auto aspect-square w-full max-w-[300px] overflow-hidden rounded-lg bg-shell ring-1 ring-line">
+              {previewUrl ? (
+                <img src={previewUrl} alt="Cover preview" className="size-full" />
+              ) : (
+                <div className="grid size-full place-items-center px-6 text-center text-sm text-ink-dim">
+                  Your image shows up here.
+                </div>
+              )}
+              {tab === "boxart" && busy && (
+                <div className="absolute inset-0 grid place-items-center bg-shell/50">
+                  <Loader2 className="size-6 animate-spin text-ink-dim" />
+                </div>
+              )}
             </div>
-          )}
+            <p className="text-center text-xs text-ink-dim">Preview at 480 × 480</p>
+          </div>
         </div>
-        {roms.length === 0 && <p className="text-sm text-amber">This collection has no games yet, so the cover uses placeholders.</p>}
+
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button
             className="press"
-            disabled={!blob || busy}
+            disabled={!result || (tab === "boxart" && busy)}
             onClick={() => {
-              if (blob) onUse(blob)
+              if (result) onUse(result)
               onClose()
             }}
           >

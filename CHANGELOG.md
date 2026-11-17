@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.1 — 2026-11-17
+- Cover dialog now has two tabs: "From box art" (the existing collage) and "Your image".
+- Your image: a Nano Banana prompt written from the collection's games (titles, systems, gamelist genres), with three art styles, an option to ask for the collection name in the artwork, Copy prompt and Open Gemini.
+- Upload any PNG, JPG or WebP by clicking, dragging or pasting from the clipboard; crop to square or show the whole image, with an optional name bar. Saved as a 480 × 480 PNG in Collections/Imgs.
+- Library reads genres from gamelist.xml.
+- "Make cover" renamed to "Set cover".
+
 ## v0.1.0 — 2026-11-17
 First release.
 - Open a spruceOS SD card from Chrome/Edge (File System Access API); reopen the last card in one click.
