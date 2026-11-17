@@ -1,0 +1,165 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource/silkscreen/latin-400.css";
+@import "@fontsource/silkscreen/latin-700.css";
+@import "@fontsource/chakra-petch/latin-400.css";
+@import "@fontsource/chakra-petch/latin-500.css";
+@import "@fontsource/chakra-petch/latin-600.css";
+@import "@fontsource/chakra-petch/latin-700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Palette: handheld plastic + face buttons + LCD.
+  plum shell, magenta "A" button, cyan "B" button, DMG-green screen.
+*/
+:root {
+  --shell: #17132a;
+  --shell-2: #1e1936;
+  --panel: #241e40;
+  --panel-2: #2d264f;
+  --line: #3f3668;
+  --ink: #efe9ff;
+  --ink-dim: #a99fcf;
+  --btn-a: #ff4f8b;
+  --btn-b: #33d1e0;
+  --amber: #ffb547;
+  --lcd: #b9cb7c;
+  --lcd-dark: #93a85a;
+  --lcd-ink: #26351a;
+
+  --radius: 0.5rem;
+  --background: var(--shell);
+  --foreground: var(--ink);
+  --card: var(--panel);
+  --card-foreground: var(--ink);
+  --popover: var(--panel-2);
+  --popover-foreground: var(--ink);
+  --primary: var(--btn-a);
+  --primary-foreground: #2a0614;
+  --secondary: var(--panel-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--panel-2);
+  --muted-foreground: var(--ink-dim);
+  --accent: #352d5e;
+  --accent-foreground: var(--ink);
+  --destructive: #ff5d5d;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--btn-b);
+}
+
+@theme inline {
+  --font-sans: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --font-pixel: "Silkscreen", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-shell: var(--shell);
+  --color-shell-2: var(--shell-2);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-btn-a: var(--btn-a);
+  --color-btn-b: var(--btn-b);
+  --color-amber: var(--amber);
+  --color-lcd: var(--lcd);
+  --color-lcd-dark: var(--lcd-dark);
+  --color-lcd-ink: var(--lcd-ink);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 15px;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.035) 1px, transparent 0);
+    background-size: 6px 6px;
+  }
+  ::selection {
+    background: var(--btn-b);
+    color: var(--shell);
+  }
+}
+
+/* Chunky, slightly raised controls — like the face buttons on a handheld. */
+.press {
+  box-shadow: 0 3px 0 0 rgb(0 0 0 / 0.45);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.press:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 rgb(0 0 0 / 0.45);
+}
+
+/* The LCD: the one loud element on the page. */
+.lcd {
+  background-color: var(--lcd);
+  color: var(--lcd-ink);
+  background-image:
+    linear-gradient(rgb(38 53 26 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(38 53 26 / 0.07) 1px, transparent 1px);
+  background-size: 3px 3px;
+  box-shadow:
+    inset 0 0 0 2px var(--lcd-dark),
+    inset 0 6px 18px rgb(38 53 26 / 0.35);
+}
+.lcd-bezel {
+  background: linear-gradient(180deg, #3a3263, #29224a);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.pixelated {
+  image-rendering: pixelated;
+}
+
+@keyframes boot-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.caret::after {
+  content: "_";
+  animation: boot-blink 1s steps(1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret::after { animation: none; }
+  .press { transition: none; }
+}
+
+/* Thin, themed scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
