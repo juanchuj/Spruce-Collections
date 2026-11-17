@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   Copy,
   ImagePlus,
   MoreHorizontal,
@@ -140,6 +141,7 @@ interface Props {
   systems: GameSystem[]
   onSelect: (uid: string) => void
   onNew: () => void
+  onReorder: () => void
   onRename: (c: Collection) => void
   onDuplicate: (c: Collection) => void
   onMove: (uid: string, d: number) => void
@@ -169,7 +171,18 @@ export function CollectionsPanel(p: Props) {
         <h2 className="font-pixel text-sm text-ink">
           Collections <span className="text-ink-dim">{p.collections.length}</span>
         </h2>
-        <Button size="sm" className="press ml-auto" onClick={p.onNew}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="ml-auto size-8 text-ink-dim"
+          onClick={p.onReorder}
+          disabled={p.collections.length < 2}
+          aria-label="Reorder collections"
+          title="Reorder collections"
+        >
+          <ArrowUpDown />
+        </Button>
+        <Button size="sm" className="press" onClick={p.onNew}>
           <Plus /> New collection
         </Button>
       </div>
@@ -252,7 +265,7 @@ export function CollectionsPanel(p: Props) {
               )}
             </div>
             <div className="flex items-center justify-between px-1 pt-2.5 text-xs text-ink-dim">
-              <span>Shown in the order the handheld uses</span>
+              <span>A–Z by file name, as on the handheld</span>
               {broken.length > 0 && (
                 <button
                   className="font-semibold text-amber hover:underline"

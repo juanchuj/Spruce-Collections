@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.1 — 2026-11-17
+- New "Reorder collections" tool (button next to New collection): drag and drop, up/down arrows, Alt+↑/↓ from the keyboard, quick sorts (A–Z, Z–A, most games first) and a handheld preview. Applied in one undo step; the handheld shows collections in this order after saving.
+- The collection preview now says games are listed A–Z by file name, as spruceOS does on the device.
+
 ## v0.3.0 — 2026-11-17
 New Library tool (header button "Library").
 - Open your ROM library folder read-only (drive, NAS share or local folder), reopen it in one click; demo library included.

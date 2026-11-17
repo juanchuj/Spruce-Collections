@@ -157,6 +157,15 @@ export function useWorkspace() {
           return next
         })
       },
+      /** Put collections in this exact order (one undo step). */
+      reorder(uids: string[]) {
+        commit((prev) => {
+          const byUid = new Map(prev.map((c) => [c.uid, c]))
+          const next = uids.map((u) => byUid.get(u)).filter((c): c is Collection => !!c)
+          for (const c of prev) if (!uids.includes(c.uid)) next.push(c)
+          return next.every((c, i) => c === prev[i]) ? prev : next
+        })
+      },
       addGames(uid: string, roms: Rom[]) {
         const target = live.current.find((c) => c.uid === uid)
         if (!target) return 0

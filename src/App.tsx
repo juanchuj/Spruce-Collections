@@ -11,6 +11,7 @@ import { Library } from "@/components/Library"
 import { SystemRail } from "@/components/SystemRail"
 import { CollectionsPanel } from "@/components/CollectionsPanel"
 import { SuggestDialog } from "@/components/SuggestDialog"
+import { ReorderDialog } from "@/components/ReorderDialog"
 import { LibraryView } from "@/components/library/LibraryView"
 import { renderCover } from "@/lib/cover"
 import { ConflictDialog, CoverDialog, NameDialog, type NameRequest, SaveDialog } from "@/components/Dialogs"
@@ -58,6 +59,7 @@ export default function App() {
   const [coverEpoch, setCoverEpoch] = useState(0)
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [reorderOpen, setReorderOpen] = useState(false)
   const latestScan = useRef<ScanResult | null>(null)
 
   useEffect(() => {
@@ -415,6 +417,7 @@ export default function App() {
             systems={scan.systems}
             onSelect={ws.setSelected}
             onNew={() => askNew()}
+            onReorder={() => setReorderOpen(true)}
             onRename={(c) =>
               setNameReq({
                 title: "Rename collection",
@@ -451,6 +454,15 @@ export default function App() {
           if (!coverFor) return
           actions.setCover(coverFor.uid, blob)
           toast.success(`Cover ready for ${coverFor.name}`, { description: "It's written to the card when you save." })
+        }}
+      />
+      <ReorderDialog
+        open={reorderOpen}
+        collections={collections}
+        onClose={() => setReorderOpen(false)}
+        onApply={(uids) => {
+          actions.reorder(uids)
+          toast.success("Collections reordered", { description: "Save to card to apply it on the handheld.", action: { label: "Undo", onClick: () => ws.undo() } })
         }}
       />
       <SuggestDialog
