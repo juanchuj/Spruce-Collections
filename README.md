@@ -11,6 +11,14 @@ Works with any spruceOS 4.x card (TrimUI Brick / Brick Pro / Smart Pro, Miyoo, A
 
 Firefox and Safari can read the card but not write to it: there you download `collections.json` and copy it into `Collections/` yourself.
 
+## Suggest collections with AI
+**Suggest with AI** builds a prompt with your whole library for Claude, Gemini or ChatGPT. Paste the reply back and the app creates the collections. Replies use this format:
+```json
+{ "format": "spruce-collections/v1",
+  "collections": [ { "name": "Zelda Saga", "description": "…", "games": ["k3j9a1", "0bq7zz"] } ] }
+```
+Game IDs are short hashes of each ROM path, so they stay the same between sessions.
+
 ## What it writes
 - `Collections/collections.json` — same schema PyUI's `CollectionsManager` uses:
   `[{ "collection_name": "...", "game_list": [{ "rom_file_path": "/mnt/SDCARD/Roms/GBA/x.gba", "game_system_name": "GBA" }] }]`

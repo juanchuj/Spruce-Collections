@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Download, HardDrive, LogOut, Redo2, Save, Undo2 } from "lucide-react"
+import { Download, HardDrive, LogOut, Redo2, Save, Sparkles, Undo2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { Toaster } from "@/components/ui/sonner"
@@ -10,6 +10,8 @@ import { ConnectScreen, type LcdState } from "@/components/ConnectScreen"
 import { Library } from "@/components/Library"
 import { SystemRail } from "@/components/SystemRail"
 import { CollectionsPanel } from "@/components/CollectionsPanel"
+import { SuggestDialog } from "@/components/SuggestDialog"
+import { renderCover } from "@/lib/cover"
 import { ConflictDialog, CoverDialog, NameDialog, type NameRequest, SaveDialog } from "@/components/Dialogs"
 import { type CardDir, FsaDir, MemDir } from "@/lib/fs"
 import { buildDemoCard } from "@/lib/demo"
@@ -52,6 +54,7 @@ export default function App() {
   const [saving, setSaving] = useState(false)
   const [conflict, setConflict] = useState(false)
   const [coverEpoch, setCoverEpoch] = useState(0)
+  const [suggestOpen, setSuggestOpen] = useState(false)
 
   useEffect(() => {
     recallHandle().then(setRemembered)
@@ -142,6 +145,25 @@ export default function App() {
     if (!active) return
     if (active.games.some((g) => g.rom_file_path === rom.path)) actions.removeGames(active.uid, [rom.path])
     else actions.addGames(active.uid, [rom])
+  }
+
+  const createSuggested = async (items: { name: string; roms: Rom[] }[], makeCovers: boolean) => {
+    const res = actions.createMany(items)
+    const made = res.filter((r) => !r.merged)
+    const merged = res.length - made.length
+    toast.success(`Created ${made.length} ${made.length === 1 ? "collection" : "collections"}`, {
+      description: [merged ? `Added games to ${merged} existing.` : "", "Review them, then save to the card."].filter(Boolean).join(" "),
+      action: { label: "Undo", onClick: () => ws.undo() },
+    })
+    if (makeCovers) {
+      for (const r of made) {
+        try {
+          actions.setCover(r.uid, await renderCover(r.name, r.roms, "grid4"))
+        } catch {
+          /* a missing cover is fine */
+        }
+      }
+    }
   }
 
   const remove = (c: Collection) => {
@@ -274,6 +296,9 @@ export default function App() {
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
+            <Button variant="secondary" className="press mr-2" onClick={() => setSuggestOpen(true)}>
+              <Sparkles className="text-btn-b" /> Suggest with AI
+            </Button>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button size="icon" variant="ghost" onClick={() => ws.undo()} disabled={!ws.canUndo} aria-label="Undo">
@@ -382,6 +407,14 @@ export default function App() {
           actions.setCover(coverFor.uid, blob)
           toast.success(`Cover ready for ${coverFor.name}`, { description: "It's written to the card when you save." })
         }}
+      />
+      <SuggestDialog
+        open={suggestOpen}
+        roms={scan.roms}
+        systems={scan.systems}
+        collections={collections}
+        onClose={() => setSuggestOpen(false)}
+        onCreate={createSuggested}
       />
       <SaveDialog open={saveOpen} diff={ws.diff} readOnly={readOnly} saving={saving} onClose={() => setSaveOpen(false)} onConfirm={() => doSave()} />
       <ConflictDialog open={conflict} onCancel={() => setConflict(false)} onOverwrite={() => doSave(true)} onReload={reloadFromCard} />

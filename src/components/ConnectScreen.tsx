@@ -59,7 +59,7 @@ function Lcd({ state }: { state: LcdState }) {
           </div>
         )}
 
-        <div className="text-[10px] opacity-60">{state.kind === "scanning" ? `${pct}%` : "v0.1.1"}</div>
+        <div className="text-[10px] opacity-60">{state.kind === "scanning" ? `${pct}%` : "v0.2.0"}</div>
       </div>
       <div className="mt-4 flex items-center justify-between px-1">
         <div className="relative size-6" aria-hidden>

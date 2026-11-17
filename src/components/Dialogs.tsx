@@ -113,7 +113,7 @@ function useBlobUrl(blob: Blob | null) {
   return url
 }
 
-function Segmented<T extends string>({
+export function Segmented<T extends string>({
   value,
   options,
   onChange,
@@ -143,7 +143,7 @@ function Segmented<T extends string>({
   )
 }
 
-function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
+export function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
       <span className="grid size-5 place-items-center rounded-[4px] bg-btn-a font-pixel text-[10px] text-primary-foreground">{n}</span>

@@ -101,6 +101,33 @@ export function useWorkspace() {
         setSelected(uid)
         return uid
       },
+      /**
+       * Create several collections in one undo step. A name that matches an existing
+       * collection (case-insensitive) adds its games to that collection instead.
+       */
+      createMany(items: { name: string; roms: Rom[] }[]) {
+        const result: { uid: string; name: string; merged: boolean; roms: Rom[] }[] = []
+        commit((prev) => {
+          const next = prev.map((c) => ({ ...c, games: [...c.games] }))
+          for (const item of items) {
+            const name = item.name.trim()
+            const entries = item.roms.map((r) => ({ rom_file_path: r.path, game_system_name: r.systemId }))
+            const hit = next.find((c) => c.name.toLowerCase() === name.toLowerCase())
+            if (hit) {
+              const have = new Set(hit.games.map((g) => g.rom_file_path))
+              hit.games.push(...entries.filter((e) => !have.has(e.rom_file_path) && have.add(e.rom_file_path)))
+              result.push({ uid: hit.uid, name: hit.name, merged: true, roms: item.roms })
+            } else {
+              const uid = newUid()
+              next.push({ uid, name, originalName: null, games: entries })
+              result.push({ uid, name, merged: false, roms: item.roms })
+            }
+          }
+          return next
+        })
+        if (result[0]) setSelected(result[0].uid)
+        return result
+      },
       rename(uid: string, name: string) {
         commit((prev) => prev.map((c) => (c.uid === uid ? { ...c, name: name.trim() } : c)))
       },
